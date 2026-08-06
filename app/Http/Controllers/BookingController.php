@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Villa;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,6 +155,9 @@ class BookingController extends Controller
 
         $booking->load(['villa.images', 'payment']);
 
+        NotificationService::admin('booking', 'Pesanan baru', "Pesanan {$booking->booking_code} dibuat oleh {$booking->guest_name}.", '/admin/bookings');
+        NotificationService::user($booking->user_id, 'booking', 'Pesanan dibuat', "Pesanan {$booking->booking_code} berhasil dibuat. Silakan lakukan pembayaran.", "/bookings/{$booking->id}");
+
         return response()->json($booking, 201);
     }
 
@@ -168,6 +172,9 @@ class BookingController extends Controller
         }
 
         $booking->update(['status' => 'cancelled']);
+
+        NotificationService::user($booking->user_id, 'booking', 'Pesanan dibatalkan', "Pesanan {$booking->booking_code} telah dibatalkan.", "/bookings/{$booking->id}");
+        NotificationService::admin('booking', 'Pesanan dibatalkan', "Pesanan {$booking->booking_code} dibatalkan oleh pelanggan.", '/admin/bookings');
 
         return response()->json($booking);
     }

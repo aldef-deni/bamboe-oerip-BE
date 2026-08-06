@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Setting;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -61,6 +62,9 @@ class PaymentController extends Controller
         ]);
 
         $booking->update(['status' => 'awaiting_verification']);
+
+        NotificationService::admin('payment', 'Pembayaran perlu verifikasi', "Bukti pembayaran {$booking->booking_code} dari {$data['sender_name']} menunggu verifikasi.", '/admin/payments');
+        NotificationService::user($booking->user_id, 'payment', 'Bukti pembayaran terkirim', "Bukti pembayaran untuk {$booking->booking_code} telah dikirim dan menunggu verifikasi.", "/bookings/{$booking->id}");
 
         $booking->load(['villa.images', 'payment']);
 

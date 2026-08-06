@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -30,6 +31,8 @@ class AuthController extends Controller
             'password' => $data['password'],
             'role' => 'user',
         ]);
+
+        NotificationService::admin('customer', 'Pelanggan baru', "{$user->name} ({$user->email}) baru mendaftar.", '/admin/users');
 
         $token = $user->createToken('villabox')->plainTextToken;
 
@@ -128,6 +131,8 @@ class AuthController extends Controller
                 'role' => 'user',
                 'email_verified_at' => now(),
             ]);
+
+            NotificationService::admin('customer', 'Pelanggan baru (Google)', "{$user->name} ({$user->email}) mendaftar via Google.", '/admin/users');
         } else {
             // Tautkan akun email yang sudah ada dengan Google
             if (! $user->google_id) {

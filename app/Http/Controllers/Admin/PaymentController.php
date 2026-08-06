@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Services\LoyaltyService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -28,6 +29,8 @@ class PaymentController extends Controller
         }
 
         $count = Payment::whereIn('id', $data['ids'])->delete();
+
+        NotificationService::admin('payment', 'Pembayaran dihapus', "{$count} data pembayaran dihapus permanen.", '/admin/payments');
 
         return response()->json(['message' => "{$count} data pembayaran dihapus permanen.", 'deleted' => $count]);
     }
@@ -56,6 +59,8 @@ class PaymentController extends Controller
         // Berikan poin loyalitas (idempoten)
         LoyaltyService::awardForBooking($payment->booking);
 
+        NotificationService::user($payment->booking->user_id, 'payment', 'Pembayaran terverifikasi', "Pembayaran untuk {$payment->booking->booking_code} telah diverifikasi. Pesanan Anda dikonfirmasi.", "/bookings/{$payment->booking->id}");
+
         $payment->load(['booking.villa:id,name', 'booking.user:id,name']);
 
         return response()->json($payment);
@@ -75,6 +80,9 @@ class PaymentController extends Controller
         ]);
 
         $payment->booking->update(['status' => 'rejected']);
+
+        $note = ! empty($data['note']) ? ' Alasan: ' . $data['note'] : '';
+        NotificationService::user($payment->booking->user_id, 'payment', 'Pembayaran ditolak', "Pembayaran untuk {$payment->booking->booking_code} ditolak.{$note}", "/bookings/{$payment->booking->id}");
 
         $payment->load(['booking.villa:id,name', 'booking.user:id,name']);
 

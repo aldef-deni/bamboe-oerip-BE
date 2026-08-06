@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Villa;
 use App\Models\VillaImage;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -37,6 +38,8 @@ class VillaController extends Controller
         $this->syncAmenities($request, $villa);
         $this->handleImages($request, $villa);
 
+        NotificationService::admin('villa', 'Villa ditambahkan', "Villa \"{$villa->name}\" ditambahkan.", '/admin/villas');
+
         $villa->load(['images', 'amenities']);
 
         return response()->json($villa, 201);
@@ -49,6 +52,8 @@ class VillaController extends Controller
         $villa->update($data);
         $this->syncAmenities($request, $villa);
         $this->handleImages($request, $villa);
+
+        NotificationService::admin('villa', 'Villa diperbarui', "Villa \"{$villa->name}\" diperbarui.", '/admin/villas');
 
         $villa->load(['images', 'amenities']);
 
@@ -65,7 +70,10 @@ class VillaController extends Controller
             Storage::disk('public')->delete($image->path);
         }
 
+        $name = $villa->name;
         $villa->delete();
+
+        NotificationService::admin('villa', 'Villa dihapus', "Villa \"{$name}\" dihapus.", '/admin/villas');
 
         return response()->json(['message' => 'Villa dihapus.']);
     }

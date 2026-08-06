@@ -7,6 +7,7 @@ use App\Models\LoyaltyPoint;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\LoyaltyTierService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class LoyaltyController extends Controller
@@ -162,6 +163,16 @@ class LoyaltyController extends Controller
             'balance_after' => $balanceAfter,
             'expired_at' => null,
         ]);
+
+        NotificationService::user(
+            $user->id,
+            'loyalty',
+            $signed >= 0 ? 'Poin bertambah' : 'Poin berkurang',
+            $signed >= 0
+                ? 'Anda mendapatkan ' . abs($signed) . ' poin. ' . $data['description']
+                : abs($signed) . ' poin Anda dikurangi. ' . $data['description'],
+            '/profile/loyalty'
+        );
 
         return response()->json([
             'message' => $signed >= 0

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\LoyaltyPoint;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
@@ -48,7 +49,7 @@ class LoyaltyService
             return null;
         }
 
-        return DB::transaction(function () use ($user, $booking, $points) {
+        $point = DB::transaction(function () use ($user, $booking, $points) {
             $currentEarned = $user->loyaltyPoints()
                 ->where(function ($q) {
                     $q->whereNull('expired_at')->orWhere('expired_at', '>', now());
@@ -68,5 +69,9 @@ class LoyaltyService
                 'expired_at' => null,
             ]);
         });
+
+        NotificationService::user($user->id, 'loyalty', 'Poin bertambah', "Anda mendapatkan {$points} poin dari pesanan {$booking->booking_code}.", '/profile/loyalty');
+
+        return $point;
     }
 }

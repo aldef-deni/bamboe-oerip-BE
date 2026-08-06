@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\SettingController as AdminSetting;
 use App\Http\Controllers\Admin\UserController as AdminUser;
 use App\Http\Controllers\Admin\ReportController as AdminReport;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\LoyaltyController as AdminLoyalty;
 
 /*
@@ -70,11 +71,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/loyalty/balance', [LoyaltyController::class, 'balance']);
     Route::get('/loyalty/history', [LoyaltyController::class, 'history']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
 });
 
 // ---- Admin ----
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminDashboard::class, 'index']);
+
+    Route::get('/notifications', [NotificationController::class, 'adminIndex']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'adminMarkAllRead']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'adminMarkRead']);
 
     Route::get('/villas', [AdminVilla::class, 'index']);
     Route::post('/villas', [AdminVilla::class, 'store']);

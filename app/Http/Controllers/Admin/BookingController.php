@@ -5,11 +5,21 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Services\LoyaltyService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class BookingController extends Controller
 {
+    private const STATUS_LABELS = [
+        'pending' => 'Menunggu Pembayaran',
+        'awaiting_verification' => 'Menunggu Verifikasi',
+        'confirmed' => 'Dikonfirmasi',
+        'completed' => 'Selesai',
+        'cancelled' => 'Dibatalkan',
+        'rejected' => 'Ditolak',
+    ];
+
     public function index(Request $request)
     {
         $query = Booking::with(['villa:id,name,city', 'user:id,name,email', 'payment']);
@@ -49,6 +59,10 @@ class BookingController extends Controller
             LoyaltyService::awardForBooking($booking);
         }
 
+        // Notifikasi ke pelanggan untuk setiap perubahan status
+        $label = self::STATUS_LABELS[$data['status']] ?? $data['status'];
+        NotificationService::user($booking->user_id, 'booking', 'Status pesanan diperbarui', "Pesanan {$booking->booking_code} kini berstatus: {$label}.", "/bookings/{$booking->id}");
+
         $booking->load(['villa:id,name', 'user:id,name', 'payment']);
 
         return response()->json($booking);
@@ -59,7 +73,10 @@ class BookingController extends Controller
         if ($booking->payment?->proof_path) {
             Storage::disk('public')->delete($booking->payment->proof_path);
         }
+        $code = $booking->booking_code;
         $booking->delete(); // payment ikut terhapus (cascade)
+
+        NotificationService::admin('booking', 'Pesanan dihapus', "Pesanan {$code} dihapus permanen.", '/admin/bookings');
 
         return response()->json(['message' => 'Pesanan dihapus permanen.']);
     }
@@ -82,6 +99,8 @@ class BookingController extends Controller
         }
 
         $count = Booking::whereIn('id', $data['ids'])->delete();
+
+        NotificationService::admin('booking', 'Pesanan dihapus', "{$count} pesanan dihapus permanen.", '/admin/bookings');
 
         return response()->json(['message' => "{$count} pesanan dihapus permanen.", 'deleted' => $count]);
     }
