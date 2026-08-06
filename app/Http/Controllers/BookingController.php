@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Payment;
+use App\Mail\InvoiceMail;
 use App\Models\Setting;
 use App\Models\Villa;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
@@ -157,6 +160,16 @@ class BookingController extends Controller
 
         NotificationService::admin('booking', 'Pesanan baru', "Pesanan {$booking->booking_code} dibuat oleh {$booking->guest_name}.", '/admin/bookings');
         NotificationService::user($booking->user_id, 'booking', 'Pesanan dibuat', "Pesanan {$booking->booking_code} berhasil dibuat. Silakan lakukan pembayaran.", "/bookings/{$booking->id}");
+
+        // Kirim invoice ke email pelanggan (tidak menggagalkan request bila gagal)
+        try {
+            $recipient = $booking->guest_email ?: $request->user()->email;
+            if ($recipient) {
+                Mail::to($recipient)->send(new InvoiceMail($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengirim invoice: ' . $e->getMessage());
+        }
 
         return response()->json($booking, 201);
     }

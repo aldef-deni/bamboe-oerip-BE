@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VoucherMail;
 use App\Models\Payment;
 use App\Services\LoyaltyService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
@@ -60,6 +63,17 @@ class PaymentController extends Controller
         LoyaltyService::awardForBooking($payment->booking);
 
         NotificationService::user($payment->booking->user_id, 'payment', 'Pembayaran terverifikasi', "Pembayaran untuk {$payment->booking->booking_code} telah diverifikasi. Pesanan Anda dikonfirmasi.", "/bookings/{$payment->booking->id}");
+
+        // Kirim e-voucher ke email pelanggan
+        try {
+            $booking = $payment->booking->load('villa');
+            $recipient = $booking->guest_email ?: $booking->user?->email;
+            if ($recipient) {
+                Mail::to($recipient)->send(new VoucherMail($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengirim e-voucher: ' . $e->getMessage());
+        }
 
         $payment->load(['booking.villa:id,name', 'booking.user:id,name']);
 

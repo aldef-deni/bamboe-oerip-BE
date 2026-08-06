@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VoucherMail;
 use App\Models\Booking;
 use App\Services\LoyaltyService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class BookingController extends Controller
@@ -62,6 +65,19 @@ class BookingController extends Controller
         // Notifikasi ke pelanggan untuk setiap perubahan status
         $label = self::STATUS_LABELS[$data['status']] ?? $data['status'];
         NotificationService::user($booking->user_id, 'booking', 'Status pesanan diperbarui', "Pesanan {$booking->booking_code} kini berstatus: {$label}.", "/bookings/{$booking->id}");
+
+        // Kirim e-voucher saat pesanan dikonfirmasi manual oleh admin
+        if ($data['status'] === 'confirmed') {
+            try {
+                $b = $booking->load('villa');
+                $recipient = $b->guest_email ?: $b->user?->email;
+                if ($recipient) {
+                    Mail::to($recipient)->send(new VoucherMail($b));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Gagal mengirim e-voucher: ' . $e->getMessage());
+            }
+        }
 
         $booking->load(['villa:id,name', 'user:id,name', 'payment']);
 
