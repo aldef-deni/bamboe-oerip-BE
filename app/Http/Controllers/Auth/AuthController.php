@@ -76,8 +76,14 @@ class AuthController extends Controller
             'credential' => ['required', 'string'],
         ]);
 
-        $clientId = config('services.google.client_id');
-        if (! $clientId) {
+        // Audience yang diizinkan: web (client_id), Android, iOS
+        $allowedAud = array_values(array_filter([
+            config('services.google.client_id'),
+            config('services.google.android_client_id'),
+            config('services.google.ios_client_id'),
+        ]));
+
+        if (empty($allowedAud)) {
             return response()->json(['message' => 'Login Google belum dikonfigurasi di server.'], 500);
         }
 
@@ -92,8 +98,8 @@ class AuthController extends Controller
 
         $payload = $resp->json();
 
-        // Pastikan token memang untuk aplikasi kita
-        if (($payload['aud'] ?? null) !== $clientId) {
+        // Pastikan token memang untuk aplikasi kita (web / Android / iOS)
+        if (! in_array($payload['aud'] ?? null, $allowedAud, true)) {
             throw ValidationException::withMessages(['credential' => ['Token Google tidak dikenali.']]);
         }
 
