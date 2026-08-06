@@ -18,7 +18,26 @@ class PromoController extends Controller
             $query->where('code', 'like', "%{$search}%")->orWhere('description', 'like', "%{$search}%");
         }
 
-        return response()->json($query->latest()->paginate((int) $request->query('per_page', 20)));
+        return response()->json(
+            $query->orderBy('sort_order')->orderByDesc('created_at')->paginate((int) $request->query('per_page', 20))
+        );
+    }
+
+    /**
+     * Simpan ulang urutan tampil kartu promo di web customer.
+     */
+    public function reorder(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:promos,id'],
+        ]);
+
+        foreach ($data['ids'] as $i => $id) {
+            Promo::where('id', $id)->update(['sort_order' => $i]);
+        }
+
+        return response()->json(['message' => 'Urutan promo berhasil disimpan.']);
     }
 
     public function store(Request $request)
@@ -27,6 +46,7 @@ class PromoController extends Controller
         $data['code'] = strtoupper($data['code']);
         $data['is_active'] = $request->boolean('is_active');
         $data['is_popup'] = $request->boolean('is_popup');
+        $data['sort_order'] = (int) Promo::max('sort_order') + 1; // promo baru di urutan terakhir
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('promos', 'public');

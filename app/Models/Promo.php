@@ -21,6 +21,7 @@ class Promo extends Model
         'expires_at',
         'is_active',
         'is_popup',
+        'sort_order',
     ];
 
     protected $casts = [

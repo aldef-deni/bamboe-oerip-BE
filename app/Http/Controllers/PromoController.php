@@ -13,6 +13,7 @@ class PromoController extends Controller
     public function index()
     {
         $promos = Promo::active()
+            ->orderBy('sort_order')
             ->latest()
             ->get()
             ->map(fn ($p) => [

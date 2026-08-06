@@ -97,6 +97,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/payments/{payment}/reject', [AdminPayment::class, 'reject']);
 
     Route::apiResource('amenities', AdminAmenity::class)->except(['show']);
+    Route::post('/promos/reorder', [AdminPromo::class, 'reorder']);
     Route::apiResource('promos', AdminPromo::class)->except(['show']);
 
     Route::get('/users', [AdminUser::class, 'index']);
