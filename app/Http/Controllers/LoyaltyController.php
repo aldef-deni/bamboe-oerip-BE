@@ -23,10 +23,15 @@ class LoyaltyController extends Controller
             ->where('type', 'spend')
             ->sum('points');
 
+        // Poin penyesuaian manual dari admin (bisa positif/negatif)
+        $adjustPoints = $user->loyaltyPoints()
+            ->where('type', 'adjust')
+            ->sum('points');
+
         $tierInfo = LoyaltyTierService::getUserTierInfo($user);
 
         return response()->json([
-            'balance' => $activePoints - $spentPoints,
+            'balance' => $activePoints + $adjustPoints - $spentPoints,
             'total_earned' => $activePoints,
             'total_spent' => $spentPoints,
             'lifetime_points' => $tierInfo['lifetime_points'],

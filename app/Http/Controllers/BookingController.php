@@ -108,7 +108,13 @@ class BookingController extends Controller
                 $discount = $promo->discountFor($subtotal);
             }
 
-            $total = $subtotal + $serviceFee - $discount;
+            // PPN (opsional, dapat diaktifkan admin di Pengaturan)
+            $preTax = $subtotal + $serviceFee - $discount;
+            $taxEnabled = filter_var(Setting::get('tax_enabled', false), FILTER_VALIDATE_BOOLEAN);
+            $taxPercent = (float) Setting::get('tax_percent', 0);
+            $tax = ($taxEnabled && $taxPercent > 0) ? round($preTax * $taxPercent / 100, 2) : 0;
+
+            $total = $preTax + $tax;
 
             $booking = Booking::create([
                 'user_id' => $request->user()->id,
@@ -125,6 +131,7 @@ class BookingController extends Controller
                 'price_per_night' => $pricePerNight,
                 'subtotal' => $subtotal,
                 'service_fee' => $serviceFee,
+                'tax' => $tax,
                 'discount' => $discount,
                 'total' => $total,
                 'status' => 'pending',

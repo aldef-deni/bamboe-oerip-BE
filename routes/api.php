@@ -111,5 +111,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/loyalty/stats', [AdminLoyalty::class, 'stats']);
     Route::get('/loyalty/tiers', [AdminLoyalty::class, 'getTiers']);
     Route::put('/loyalty/tiers', [AdminLoyalty::class, 'saveTiers']);
+    Route::get('/loyalty/user/{user}', [AdminLoyalty::class, 'userInfo']);
     Route::post('/loyalty/adjust/{user}', [AdminLoyalty::class, 'adjust']);
+    Route::post('/loyalty/tier/{user}', [AdminLoyalty::class, 'setTier']);
 });

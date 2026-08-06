@@ -22,6 +22,7 @@ class User extends Authenticatable
         'google_id',
         'google_avatar',
         'role',
+        'tier_override',
         'password',
     ];
 

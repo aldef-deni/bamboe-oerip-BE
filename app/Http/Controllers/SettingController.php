@@ -19,6 +19,8 @@ class SettingController extends Controller
             'whatsapp',
             'address',
             'service_fee_percent',
+            'tax_enabled',
+            'tax_percent',
         ];
 
         $all = Setting::asMap();

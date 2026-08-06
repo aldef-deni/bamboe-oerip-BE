@@ -144,12 +144,24 @@ class LoyaltyTierService
         $tiers = static::getTiers();
         $lifetimePoints = static::getLifetimePoints($user);
         $currentTier = static::resolveTier($lifetimePoints, $tiers);
-        $nextTier = static::getNextTier($currentTier, $tiers);
 
+        // Override manual oleh admin (bila diisi & valid)
+        $isOverride = false;
+        if (! empty($user->tier_override)) {
+            foreach ($tiers as $t) {
+                if (($t['slug'] ?? '') === $user->tier_override) {
+                    $currentTier = $t;
+                    $isOverride = true;
+                    break;
+                }
+            }
+        }
+
+        $nextTier = static::getNextTier($currentTier, $tiers);
         $progress = 100;
         $pointsToNext = 0;
 
-        if ($nextTier) {
+        if ($nextTier && ! $isOverride) {
             $rangeStart = $currentTier['min_points'] ?? 0;
             $rangeEnd = $nextTier['min_points'];
             $range = $rangeEnd - $rangeStart;
@@ -159,12 +171,20 @@ class LoyaltyTierService
             $pointsToNext = max(0, $rangeEnd - $lifetimePoints);
         }
 
+        // Tier ditetapkan manual → tampil sebagai tier tetap
+        if ($isOverride) {
+            $nextTier = null;
+            $progress = 100;
+            $pointsToNext = 0;
+        }
+
         return [
             'lifetime_points' => $lifetimePoints,
             'current_tier' => $currentTier,
             'next_tier' => $nextTier,
             'progress_percent' => $progress,
             'points_to_next_tier' => $pointsToNext,
+            'is_override' => $isOverride,
             'all_tiers' => $tiers,
         ];
     }

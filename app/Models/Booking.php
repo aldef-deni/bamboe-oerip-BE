@@ -27,6 +27,7 @@ class Booking extends Model
         'price_per_night',
         'subtotal',
         'service_fee',
+        'tax',
         'discount',
         'total',
         'status',
@@ -42,6 +43,7 @@ class Booking extends Model
         'price_per_night' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'service_fee' => 'decimal:2',
+        'tax' => 'decimal:2',
         'discount' => 'decimal:2',
         'total' => 'decimal:2',
     ];

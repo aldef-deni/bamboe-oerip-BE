@@ -98,34 +98,97 @@ class LoyaltyController extends Controller
         ]);
     }
 
-    public function adjust(Request $request, User $user)
+    /**
+     * Saldo poin tersedia = poin earn aktif + penyesuaian manual − yang dibelanjakan.
+     */
+    private function availableBalance(User $user): int
     {
-        $data = $request->validate([
-            'points' => ['required', 'integer', 'min:1'],
-            'description' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:adjust'],
-        ]);
-
-        $currentEarned = $user->loyaltyPoints()
+        $earn = $user->loyaltyPoints()
             ->where(function ($q) {
                 $q->whereNull('expired_at')->orWhere('expired_at', '>', now());
             })
             ->where('type', 'earn')
             ->sum('points');
 
-        $currentSpent = $user->loyaltyPoints()->where('type', 'spend')->sum('points');
-        $balanceAfter = ($currentEarned + $data['points']) - $currentSpent;
+        $adjust = $user->loyaltyPoints()->where('type', 'adjust')->sum('points');
+        $spent = $user->loyaltyPoints()->where('type', 'spend')->sum('points');
+
+        return (int) ($earn + $adjust - $spent);
+    }
+
+    /**
+     * Ringkasan loyalti seorang pelanggan (untuk panel kelola manual).
+     */
+    public function userInfo(User $user)
+    {
+        $info = LoyaltyTierService::getUserTierInfo($user);
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar_url' => $user->avatar_url,
+            'balance' => $this->availableBalance($user),
+            'lifetime_points' => $info['lifetime_points'],
+            'current_tier' => $info['current_tier'],
+            'is_override' => $info['is_override'] ?? false,
+            'tier_override' => $user->tier_override,
+        ]);
+    }
+
+    /**
+     * Input poin manual (tambah / kurang) untuk seorang pelanggan.
+     */
+    public function adjust(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'points' => ['required', 'integer', 'min:1'],
+            'description' => ['required', 'string', 'max:255'],
+            'direction' => ['nullable', 'in:add,subtract'],
+        ]);
+
+        $signed = ($data['direction'] ?? 'add') === 'subtract'
+            ? -abs($data['points'])
+            : abs($data['points']);
+
+        $balanceAfter = $this->availableBalance($user) + $signed;
 
         $point = LoyaltyPoint::create([
             'user_id' => $user->id,
             'booking_id' => null,
-            'points' => $data['points'],
+            'points' => $signed,
             'type' => 'adjust',
             'description' => $data['description'],
             'balance_after' => $balanceAfter,
             'expired_at' => null,
         ]);
 
-        return response()->json($point, 201);
+        return response()->json([
+            'message' => $signed >= 0
+                ? abs($signed) . ' poin ditambahkan ke ' . $user->name . '.'
+                : abs($signed) . ' poin dikurangi dari ' . $user->name . '.',
+            'point' => $point,
+            'balance' => $balanceAfter,
+        ], 201);
+    }
+
+    /**
+     * Tetapkan / kembalikan tier pelanggan secara manual.
+     */
+    public function setTier(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'tier' => ['nullable', 'in:bronze,silver,gold,platinum'],
+        ]);
+
+        $user->tier_override = $data['tier'] ?: null;
+        $user->save();
+
+        return response()->json([
+            'message' => $user->tier_override
+                ? 'Tier pelanggan ditetapkan manual ke ' . ucfirst($user->tier_override) . '.'
+                : 'Tier dikembalikan otomatis (mengikuti poin).',
+            'tier_override' => $user->tier_override,
+        ]);
     }
 }
