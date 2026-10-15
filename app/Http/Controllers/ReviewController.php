@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\Review;
 use App\Models\Villa;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -57,6 +58,9 @@ class ReviewController extends Controller
         ]);
 
         $villa->recalculateRating();
+
+        NotificationService::villaOwner($villa, 'review', 'Ulasan baru', "{$user->name} memberi {$data['rating']} bintang untuk \"{$villa->name}\".", '/owner/reviews');
+        NotificationService::admin('review', 'Ulasan baru', "{$user->name} memberi {$data['rating']} bintang untuk \"{$villa->name}\".", '/admin/villas');
 
         $review->load('user:id,name,avatar');
 

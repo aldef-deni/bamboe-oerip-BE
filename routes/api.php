@@ -21,6 +21,12 @@ use App\Http\Controllers\Admin\ReportController as AdminReport;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\LoyaltyController as AdminLoyalty;
+use App\Http\Controllers\Admin\OwnerController as AdminOwner;
+use App\Http\Controllers\Owner\DashboardController as OwnerDashboard;
+use App\Http\Controllers\Owner\VillaController as OwnerVilla;
+use App\Http\Controllers\Owner\BookingController as OwnerBooking;
+use App\Http\Controllers\Owner\ReviewController as OwnerReview;
+use App\Http\Controllers\Owner\ReportController as OwnerReport;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +39,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+// Extranet owner — tanpa endpoint daftar; akun dibuat superadmin (/admin/owners)
+Route::post('/owner/login', [AuthController::class, 'ownerLogin'])->middleware('throttle:10,1');
 
 Route::get('/settings', [SettingController::class, 'index']);
 Route::get('/payment/bank-info', [PaymentController::class, 'bankInfo']);
@@ -91,8 +99,16 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/villas/{villa}', [AdminVilla::class, 'update']); // POST + _method=PUT for multipart
     Route::put('/villas/{villa}', [AdminVilla::class, 'update']);
     Route::delete('/villas/{villa}', [AdminVilla::class, 'destroy']);
+    Route::post('/villas/{villa}/approve', [AdminVilla::class, 'approve']);
+    Route::post('/villas/{villa}/reject', [AdminVilla::class, 'reject']);
     Route::delete('/villas/{villa}/images/{image}', [AdminVilla::class, 'deleteImage']);
     Route::post('/villas/{villa}/images/{image}/primary', [AdminVilla::class, 'setPrimaryImage']);
+
+    // Akun owner properti (hanya superadmin)
+    Route::get('/owners', [AdminOwner::class, 'index']);
+    Route::post('/owners', [AdminOwner::class, 'store']);
+    Route::put('/owners/{user}', [AdminOwner::class, 'update']);
+    Route::delete('/owners/{user}', [AdminOwner::class, 'destroy']);
 
     Route::get('/bookings', [AdminBooking::class, 'index']);
     Route::post('/bookings/bulk-delete', [AdminBooking::class, 'bulkDestroy']);
@@ -123,4 +139,30 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/loyalty/user/{user}', [AdminLoyalty::class, 'userInfo']);
     Route::post('/loyalty/adjust/{user}', [AdminLoyalty::class, 'adjust']);
     Route::post('/loyalty/tier/{user}', [AdminLoyalty::class, 'setTier']);
+});
+
+// ---- Owner (Extranet — owner.bamboeoerip.com) ----
+Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function () {
+    Route::get('/dashboard', [OwnerDashboard::class, 'index']);
+
+    Route::get('/notifications', [NotificationController::class, 'ownerIndex']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'ownerMarkAllRead']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'ownerMarkRead']);
+
+    Route::get('/villas', [OwnerVilla::class, 'index']);
+    Route::post('/villas', [OwnerVilla::class, 'store']);
+    Route::get('/villas/{villa}', [OwnerVilla::class, 'show']);
+    Route::post('/villas/{villa}', [OwnerVilla::class, 'update']); // POST + _method=PUT untuk multipart
+    Route::put('/villas/{villa}', [OwnerVilla::class, 'update']);
+    Route::delete('/villas/{villa}', [OwnerVilla::class, 'destroy']);
+    Route::post('/villas/{villa}/toggle-active', [OwnerVilla::class, 'toggleActive']);
+    Route::post('/villas/{villa}/images', [OwnerVilla::class, 'uploadImage']);
+    Route::delete('/villas/{villa}/images/{image}', [OwnerVilla::class, 'deleteImage']);
+    Route::post('/villas/{villa}/images/{image}/primary', [OwnerVilla::class, 'setPrimaryImage']);
+
+    Route::get('/bookings', [OwnerBooking::class, 'index']);
+    Route::get('/bookings/{booking}', [OwnerBooking::class, 'show']);
+
+    Route::get('/reviews', [OwnerReview::class, 'index']);
+    Route::get('/reports', [OwnerReport::class, 'index']);
 });

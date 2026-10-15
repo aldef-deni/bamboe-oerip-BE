@@ -12,6 +12,7 @@ return [
         'https://www.bamboeoerip.com',
         'https://dev.bamboeoerip.com',    // app customer (staging)
         'https://kelola.bamboeoerip.com', // dashboard admin
+        'https://owner.bamboeoerip.com',  // extranet owner properti
         'http://localhost:5173',
         'http://127.0.0.1:5173',
         'http://localhost:3000',

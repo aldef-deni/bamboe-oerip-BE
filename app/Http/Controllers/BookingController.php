@@ -160,6 +160,7 @@ class BookingController extends Controller
 
         NotificationService::admin('booking', 'Pesanan baru', "Pesanan {$booking->booking_code} dibuat oleh {$booking->guest_name}.", '/admin/bookings');
         NotificationService::user($booking->user_id, 'booking', 'Pesanan dibuat', "Pesanan {$booking->booking_code} berhasil dibuat. Silakan lakukan pembayaran.", "/bookings/{$booking->id}");
+        NotificationService::villaOwner($booking->villa, 'booking', 'Pesanan baru masuk', "{$booking->guest_name} memesan \"{$booking->villa->name}\" ({$booking->check_in->format('d/m/Y')} - {$booking->check_out->format('d/m/Y')}). Menunggu pembayaran tamu.", "/owner/bookings/{$booking->id}");
 
         // Kirim invoice ke email pelanggan (tidak menggagalkan request bila gagal)
         try {
@@ -188,6 +189,7 @@ class BookingController extends Controller
 
         NotificationService::user($booking->user_id, 'booking', 'Pesanan dibatalkan', "Pesanan {$booking->booking_code} telah dibatalkan.", "/bookings/{$booking->id}");
         NotificationService::admin('booking', 'Pesanan dibatalkan', "Pesanan {$booking->booking_code} dibatalkan oleh pelanggan.", '/admin/bookings');
+        NotificationService::villaOwner($booking->villa_id, 'booking', 'Pesanan dibatalkan tamu', "Pesanan {$booking->booking_code} ({$booking->guest_name}) dibatalkan oleh tamu.", "/owner/bookings/{$booking->id}");
 
         return response()->json($booking);
     }

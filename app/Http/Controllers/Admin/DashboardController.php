@@ -43,6 +43,8 @@ class DashboardController extends Controller
                 'users' => User::where('role', 'user')->count(),
                 'bookings' => Booking::count(),
                 'pending_verification' => Payment::where('status', 'submitted')->count(),
+                'pending_villa_review' => Villa::where('review_status', 'pending')->count(),
+                'owners' => User::where('role', 'owner')->count(),
                 'revenue' => (float) $revenue,
             ],
             'bookings_by_status' => $bookingsByStatus,

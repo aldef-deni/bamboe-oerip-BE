@@ -64,6 +64,7 @@ class PaymentController extends Controller
         $booking->update(['status' => 'awaiting_verification']);
 
         NotificationService::admin('payment', 'Pembayaran perlu verifikasi', "Bukti pembayaran {$booking->booking_code} dari {$data['sender_name']} menunggu verifikasi.", '/admin/payments');
+        NotificationService::villaOwner($booking->villa_id, 'payment', 'Tamu mengirim bukti bayar', "Bukti pembayaran {$booking->booking_code} ({$booking->guest_name}) sedang diverifikasi admin.", "/owner/bookings/{$booking->id}");
         NotificationService::user($booking->user_id, 'payment', 'Bukti pembayaran terkirim', "Bukti pembayaran untuk {$booking->booking_code} telah dikirim dan menunggu verifikasi.", "/bookings/{$booking->id}");
 
         $booking->load(['villa.images', 'payment']);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -10,6 +11,7 @@ use Illuminate\Support\Str;
 class Villa extends Model
 {
     protected $fillable = [
+        'owner_id',
         'name',
         'slug',
         'type',
@@ -31,6 +33,8 @@ class Villa extends Model
         'review_count',
         'is_active',
         'is_featured',
+        'review_status',
+        'review_note',
     ];
 
     protected $casts = [
@@ -39,6 +43,7 @@ class Villa extends Model
         'rating_avg' => 'decimal:2',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
+        'owner_id' => 'integer',
         'latitude' => 'float',
         'longitude' => 'float',
     ];
@@ -63,6 +68,12 @@ class Villa extends Model
             $slug = $base . '-' . $i++;
         }
         return $slug;
+    }
+
+    /** Pemilik properti (null = dikelola langsung oleh Bamboe Oerip). */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
     public function images(): HasMany

@@ -51,9 +51,15 @@ class AuthController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
+        if (! $user || ! $user->password || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
+            ]);
+        }
+
+        if ($user->is_active === false) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun Anda dinonaktifkan. Hubungi admin Bamboe Oerip.'],
             ]);
         }
 
@@ -121,11 +127,19 @@ class AuthController extends Controller
             ->orWhere('email', $email)
             ->first();
 
-        // SSO Google hanya untuk pelanggan — akun pengelola tetap lewat login pengelola
+        // SSO Google hanya untuk pelanggan — akun pengelola/owner tetap lewat halaman login masing-masing
         if ($user && $user->role === 'admin') {
             return response()->json([
                 'message' => 'Akun pengelola tidak dapat masuk melalui Google. Gunakan halaman login pengelola.',
             ], 403);
+        }
+        if ($user && $user->role === 'owner') {
+            return response()->json([
+                'message' => 'Akun owner tidak dapat masuk melalui Google. Gunakan halaman Extranet Owner.',
+            ], 403);
+        }
+        if ($user && $user->is_active === false) {
+            return response()->json(['message' => 'Akun Anda dinonaktifkan. Hubungi admin Bamboe Oerip.'], 403);
         }
 
         if (! $user) {
@@ -182,7 +196,54 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->is_active === false) {
+            throw ValidationException::withMessages([
+                'username' => ['Akun ini dinonaktifkan.'],
+            ]);
+        }
+
         $token = $user->createToken('villabox-admin')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Login Extranet Owner (owner.bamboeoerip.com). Bisa pakai username ATAU email.
+     * Tidak ada pendaftaran mandiri — akun owner dibuat oleh superadmin.
+     */
+    public function ownerLogin(Request $request)
+    {
+        $data = $request->validate([
+            'login' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string'],
+        ], [
+            'login.required' => 'Username atau email wajib diisi.',
+            'password.required' => 'Password wajib diisi.',
+        ]);
+
+        $login = trim($data['login']);
+        $user = User::where('role', 'owner')
+            ->where(function ($q) use ($login) {
+                $q->where('username', $login)->orWhere('email', strtolower($login));
+            })
+            ->first();
+
+        if (! $user || ! $user->password || ! Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'login' => ['Username/email atau password salah.'],
+            ]);
+        }
+
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'login' => ['Akun owner Anda dinonaktifkan. Hubungi admin Bamboe Oerip.'],
+            ]);
+        }
+
+        $token = $user->createToken('villabox-owner')->plainTextToken;
 
         return response()->json([
             'user' => $user,

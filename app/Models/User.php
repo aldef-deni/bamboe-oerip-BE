@@ -22,6 +22,7 @@ class User extends Authenticatable
         'google_id',
         'google_avatar',
         'role',
+        'is_active',
         'tier_override',
         'password',
     ];
@@ -38,12 +39,25 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    /** Pemilik properti (akses ekstranet owner). */
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    /** Properti milik owner ini. */
+    public function ownedVillas(): HasMany
+    {
+        return $this->hasMany(Villa::class, 'owner_id');
     }
 
     public function getAvatarUrlAttribute(): ?string

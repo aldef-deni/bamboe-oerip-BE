@@ -51,11 +51,38 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Notifikasi ditandai dibaca.']);
     }
 
+    // ================= Owner (ekstranet) =================
+
+    public function ownerIndex(Request $request)
+    {
+        return $this->list($this->ownerQuery($request));
+    }
+
+    public function ownerMarkAllRead(Request $request)
+    {
+        $this->ownerQuery($request)->whereNull('read_at')->update(['read_at' => now()]);
+
+        return response()->json(['message' => 'Semua notifikasi ditandai dibaca.']);
+    }
+
+    public function ownerMarkRead(Request $request, Notification $notification)
+    {
+        abort_unless($notification->audience === 'owner' && (int) $notification->user_id === (int) $request->user()->id, 403);
+        $notification->update(['read_at' => now()]);
+
+        return response()->json(['message' => 'Notifikasi ditandai dibaca.']);
+    }
+
     // ================= Helpers =================
 
     protected function userQuery(Request $request)
     {
         return Notification::where('audience', 'user')->where('user_id', $request->user()->id);
+    }
+
+    protected function ownerQuery(Request $request)
+    {
+        return Notification::where('audience', 'owner')->where('user_id', $request->user()->id);
     }
 
     protected function list($query)

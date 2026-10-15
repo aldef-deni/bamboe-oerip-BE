@@ -62,6 +62,7 @@ class PaymentController extends Controller
         // Berikan poin loyalitas (idempoten)
         LoyaltyService::awardForBooking($payment->booking);
 
+        NotificationService::villaOwner($payment->booking->villa_id, 'booking', 'Pesanan terkonfirmasi', "Pembayaran {$payment->booking->booking_code} ({$payment->booking->guest_name}) terverifikasi. Siapkan properti untuk check-in {$payment->booking->check_in->format('d/m/Y')}.", "/owner/bookings/{$payment->booking->id}");
         NotificationService::user($payment->booking->user_id, 'payment', 'Pembayaran terverifikasi', "Pembayaran untuk {$payment->booking->booking_code} telah diverifikasi. Pesanan Anda dikonfirmasi.", "/bookings/{$payment->booking->id}");
 
         // Kirim e-voucher ke email pelanggan
@@ -96,6 +97,7 @@ class PaymentController extends Controller
         $payment->booking->update(['status' => 'rejected']);
 
         $note = ! empty($data['note']) ? ' Alasan: ' . $data['note'] : '';
+        NotificationService::villaOwner($payment->booking->villa_id, 'payment', 'Pembayaran tamu ditolak', "Pembayaran {$payment->booking->booking_code} ({$payment->booking->guest_name}) ditolak admin. Tanggal kembali tersedia.", "/owner/bookings/{$payment->booking->id}");
         NotificationService::user($payment->booking->user_id, 'payment', 'Pembayaran ditolak', "Pembayaran untuk {$payment->booking->booking_code} ditolak.{$note}", "/bookings/{$payment->booking->id}");
 
         $payment->load(['booking.villa:id,name', 'booking.user:id,name']);

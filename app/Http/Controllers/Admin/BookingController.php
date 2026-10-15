@@ -65,6 +65,7 @@ class BookingController extends Controller
         // Notifikasi ke pelanggan untuk setiap perubahan status
         $label = self::STATUS_LABELS[$data['status']] ?? $data['status'];
         NotificationService::user($booking->user_id, 'booking', 'Status pesanan diperbarui', "Pesanan {$booking->booking_code} kini berstatus: {$label}.", "/bookings/{$booking->id}");
+        NotificationService::villaOwner($booking->villa_id, 'booking', 'Status pesanan diperbarui', "Pesanan {$booking->booking_code} ({$booking->guest_name}) kini berstatus: {$label}.", "/owner/bookings/{$booking->id}");
 
         // Kirim e-voucher saat pesanan dikonfirmasi manual oleh admin
         if ($data['status'] === 'confirmed') {
@@ -90,7 +91,10 @@ class BookingController extends Controller
             Storage::disk('public')->delete($booking->payment->proof_path);
         }
         $code = $booking->booking_code;
+        $villaId = $booking->villa_id;
         $booking->delete(); // payment ikut terhapus (cascade)
+
+        NotificationService::villaOwner($villaId, 'booking', 'Pesanan dihapus', "Pesanan {$code} dihapus oleh admin Bamboe Oerip.", '/owner/bookings');
 
         NotificationService::admin('booking', 'Pesanan dihapus', "Pesanan {$code} dihapus permanen.", '/admin/bookings');
 
@@ -115,6 +119,12 @@ class BookingController extends Controller
         }
 
         $count = Booking::whereIn('id', $data['ids'])->delete();
+
+        // Kabari tiap owner terdampak (satu notifikasi per villa)
+        foreach ($bookings->groupBy('villa_id') as $villaId => $rows) {
+            $codes = $rows->pluck('booking_code')->implode(', ');
+            NotificationService::villaOwner((int) $villaId, 'booking', 'Pesanan dihapus', "Pesanan {$codes} dihapus oleh admin Bamboe Oerip.", '/owner/bookings');
+        }
 
         NotificationService::admin('booking', 'Pesanan dihapus', "{$count} pesanan dihapus permanen.", '/admin/bookings');
 
