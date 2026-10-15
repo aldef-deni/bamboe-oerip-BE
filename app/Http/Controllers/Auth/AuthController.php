@@ -19,7 +19,8 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            // Email unik per role — boleh sama dengan email akun admin/owner
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->where('role', 'user')],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => ['required', 'confirmed', Password::min(6)],
         ]);
@@ -49,9 +50,15 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        $user = User::where('email', $data['email'])->first();
+        // Satu email bisa punya beberapa akun (per role). Situs customer menerima
+        // akun customer (diutamakan) atau admin — bukan owner (owner lewat extranet).
+        $user = User::where('email', $data['email'])
+            ->whereIn('role', ['user', 'admin'])
+            ->orderByRaw("CASE WHEN role = 'user' THEN 0 ELSE 1 END")
+            ->get()
+            ->first(fn (User $u) => $u->password && Hash::check($data['password'], $u->password));
 
-        if (! $user || ! $user->password || ! Hash::check($data['password'], $user->password)) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);
@@ -123,21 +130,15 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['credential' => ['Data akun Google tidak lengkap.']]);
         }
 
-        $user = User::where('google_id', $googleId)
-            ->orWhere('email', $email)
+        // SSO Google hanya untuk akun customer. Email yang sama boleh juga dipakai
+        // akun admin/owner — akun tersebut tidak pernah disentuh lewat Google.
+        $user = User::where('role', 'user')
+            ->where(function ($q) use ($googleId, $email) {
+                $q->where('google_id', $googleId)->orWhere('email', $email);
+            })
+            ->orderByRaw('CASE WHEN google_id = ? THEN 0 ELSE 1 END', [$googleId])
             ->first();
 
-        // SSO Google hanya untuk pelanggan — akun pengelola/owner tetap lewat halaman login masing-masing
-        if ($user && $user->role === 'admin') {
-            return response()->json([
-                'message' => 'Akun pengelola tidak dapat masuk melalui Google. Gunakan halaman login pengelola.',
-            ], 403);
-        }
-        if ($user && $user->role === 'owner') {
-            return response()->json([
-                'message' => 'Akun owner tidak dapat masuk melalui Google. Gunakan halaman Extranet Owner.',
-            ], 403);
-        }
         if ($user && $user->is_active === false) {
             return response()->json(['message' => 'Akun Anda dinonaktifkan. Hubungi admin Bamboe Oerip.'], 403);
         }

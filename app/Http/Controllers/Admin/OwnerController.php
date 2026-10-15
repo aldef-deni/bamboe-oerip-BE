@@ -123,7 +123,8 @@ class OwnerController extends Controller
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
+            // Unik di antara akun owner saja — boleh sama dengan email customer/admin
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->where('role', 'owner')->ignore($id)],
             'username' => ['required', 'string', 'min:4', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($id)],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => [$user ? 'nullable' : 'required', 'confirmed', Password::min(8)],
@@ -137,7 +138,7 @@ class OwnerController extends Controller
             'name.required' => 'Nama owner wajib diisi.',
             'email.required' => 'Email wajib diisi.',
             'email.email' => 'Format email tidak valid.',
-            'email.unique' => 'Email sudah dipakai akun lain.',
+            'email.unique' => 'Email sudah dipakai akun owner lain.',
             'username.required' => 'Username wajib diisi.',
             'username.min' => 'Username minimal 4 karakter.',
             'username.regex' => 'Username hanya boleh huruf, angka, titik, garis bawah, dan strip (tanpa spasi).',
