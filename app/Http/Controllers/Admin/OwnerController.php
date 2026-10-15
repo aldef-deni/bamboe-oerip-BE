@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Villa;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -110,6 +112,98 @@ class OwnerController extends Controller
         NotificationService::admin('account', 'Owner dihapus', "Akun owner {$name} dihapus. Propertinya kini dikelola Bamboe Oerip.", '/admin/owners');
 
         return response()->json(['message' => 'Akun owner dihapus.']);
+    }
+
+    /**
+     * Semua properti + pemiliknya saat ini, untuk dialog "Hubungkan Properti".
+     */
+    public function villas(User $user)
+    {
+        $this->ensureOwner($user);
+
+        $villas = Villa::with(['images', 'owner:id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'city', 'owner_id', 'is_active', 'review_status'])
+            ->map(fn (Villa $v) => [
+                'id' => $v->id,
+                'name' => $v->name,
+                'type' => $v->type,
+                'city' => $v->city,
+                'is_active' => $v->is_active,
+                'review_status' => $v->review_status,
+                'owner_id' => $v->owner_id,
+                'owner_name' => $v->owner?->name,
+                'primary_image_url' => $v->primary_image_url,
+            ]);
+
+        return response()->json([
+            'owner' => $user->only(['id', 'name', 'username']),
+            'villas' => $villas,
+        ]);
+    }
+
+    /**
+     * Tautkan properti eksisting ke owner (sinkron): villa_ids = daftar akhir
+     * properti milik owner. Properti yang tidak dicentang lagi dilepas
+     * (kembali dikelola Bamboe Oerip). Properti milik owner lain dipindahkan.
+     */
+    public function syncVillas(Request $request, User $user)
+    {
+        $this->ensureOwner($user);
+
+        $data = $request->validate([
+            'villa_ids' => ['present', 'array'],
+            'villa_ids.*' => ['integer', 'distinct', 'exists:villas,id'],
+        ], [
+            'villa_ids.*.exists' => 'Ada properti yang tidak ditemukan. Muat ulang halaman.',
+        ]);
+
+        $target = collect($data['villa_ids'])->map(fn ($id) => (int) $id)->unique();
+        $current = $user->ownedVillas()->pluck('id');
+
+        $addIds = $target->diff($current)->values();
+        $removeIds = $current->diff($target)->values();
+
+        // Catat pemilik lama properti yang dipindah, untuk notifikasi
+        $moved = Villa::whereIn('id', $addIds)->whereNotNull('owner_id')->get(['id', 'name', 'owner_id']);
+        $added = Villa::whereIn('id', $addIds)->get(['id', 'name']);
+        $removed = Villa::whereIn('id', $removeIds)->get(['id', 'name']);
+
+        DB::transaction(function () use ($user, $addIds, $removeIds) {
+            if ($addIds->isNotEmpty()) {
+                Villa::whereIn('id', $addIds)->update(['owner_id' => $user->id]);
+            }
+            if ($removeIds->isNotEmpty()) {
+                Villa::whereIn('id', $removeIds)->update(['owner_id' => null]);
+            }
+        });
+
+        if ($added->isNotEmpty()) {
+            $names = $added->pluck('name')->map(fn ($n) => "\"{$n}\"")->implode(', ');
+            $link = $added->count() === 1 ? "/owner/properties/{$added->first()->id}/edit" : '/owner/properties';
+            NotificationService::owner($user->id, 'villa', 'Properti ditautkan ke akun Anda', "Properti {$names} kini dapat Anda kelola dari Extranet.", $link);
+        }
+        if ($removed->isNotEmpty()) {
+            $names = $removed->pluck('name')->map(fn ($n) => "\"{$n}\"")->implode(', ');
+            NotificationService::owner($user->id, 'villa', 'Properti dilepas dari akun Anda', "Properti {$names} tidak lagi terhubung ke akun Anda.", '/owner/properties');
+        }
+        foreach ($moved->groupBy('owner_id') as $prevOwnerId => $rows) {
+            $names = $rows->pluck('name')->map(fn ($n) => "\"{$n}\"")->implode(', ');
+            NotificationService::owner((int) $prevOwnerId, 'villa', 'Properti dipindahkan', "Properti {$names} dipindahkan ke akun owner lain oleh admin.", '/owner/properties');
+        }
+        if ($added->isNotEmpty() || $removed->isNotEmpty()) {
+            NotificationService::admin('account', 'Properti owner diperbarui', "{$user->name}: {$added->count()} properti ditautkan, {$removed->count()} dilepas.", '/admin/owners');
+        }
+
+        return response()->json([
+            'message' => "Properti {$user->name} diperbarui: {$added->count()} ditautkan, {$removed->count()} dilepas.",
+            'added' => $added->count(),
+            'removed' => $removed->count(),
+            'moved' => $moved->count(),
+            'villas_count' => $user->ownedVillas()->count(),
+            'active_villas_count' => $user->ownedVillas()->where('is_active', true)->count(),
+            'pending_villas_count' => $user->ownedVillas()->where('review_status', 'pending')->count(),
+        ]);
     }
 
     private function ensureOwner(User $user): void

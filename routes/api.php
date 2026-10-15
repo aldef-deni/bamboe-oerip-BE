@@ -109,6 +109,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/owners', [AdminOwner::class, 'store']);
     Route::put('/owners/{user}', [AdminOwner::class, 'update']);
     Route::delete('/owners/{user}', [AdminOwner::class, 'destroy']);
+    Route::get('/owners/{user}/villas', [AdminOwner::class, 'villas']);
+    Route::put('/owners/{user}/villas', [AdminOwner::class, 'syncVillas']);
 
     Route::get('/bookings', [AdminBooking::class, 'index']);
     Route::post('/bookings/bulk-delete', [AdminBooking::class, 'bulkDestroy']);
